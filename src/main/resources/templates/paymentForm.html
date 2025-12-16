@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Mock Gateway UI</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+    <h1 class="text-2xl font-bold mb-6">Mock Payment Gateway</h1>
+
+    <form id="paymentForm" class="space-y-4">
+        <div>
+            <label for="cardNumber" class="block text-sm font-medium text-gray-700">Card Number:</label>
+            <input type="text" id="cardNumber" name="cardNumber" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="4111..." required>
+        </div>
+        <div>
+            <label for="amount" class="block text-sm font-medium text-gray-700">Amount:</label>
+            <input type="number" id="amount" name="amount" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="100.50" required>
+        </div>
+        <div>
+            <label for="currency" class="block text-sm font-medium text-gray-700">Currency:</label>
+            <input type="text" id="currency" name="currency" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="RUB" required>
+        </div>
+
+        <button type="submit" id="submitButton" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Pay (Оплатить)
+        </button>
+    </form>
+
+    <hr class="my-6"/>
+
+    <div id="loadingState" class="hidden text-center">
+        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="mt-2 text-gray-600">Waiting for bank response...</p>
+    </div>
+
+    <div id="resultState" class="hidden p-4 rounded-lg">
+        <h2 class="text-xl font-bold mb-2" id="resultTitle"></h2>
+        <p>Status: <strong id="resultStatus" class="text-lg"></strong></p>
+        <p>Transaction ID: <span id="resultId"></span></p>
+        <p>Message: <span id="resultMessage"></span></p>
+    </div>
+</div>
+
+<script>
+    document.getElementById('paymentForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // ОБЪЯВЛЯЕМ ЗДЕСЬ resultDiv, чтобы она была доступна везде
+        const resultDiv = document.getElementById('resultState');
+
+        const form = event.target;
+        const formData = new FormData(form);
+        const data = {
+            cardNumber: formData.get('cardNumber'),
+            amount: formData.get('amount'),
+            currency: formData.get('currency')
+        };
+
+        // 1. Show loading
+        document.getElementById('loadingState').classList.remove('hidden');
+        resultDiv.classList.add('hidden'); // Используем resultDiv здесь
+        document.getElementById('submitButton').disabled = true;
+
+        // 2. Send AJAX request
+        fetch('/ajax/mock-payment/process-ajax', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            // 3. Process response
+            // const resultDiv = document.getElementById('resultState'); // Эту строку УДАЛЯЕМ
+            const status = result.status;
+
+            // Configure messages and colors based on status
+            if (status === 'SUCCESS') {
+                document.getElementById('resultTitle').textContent = '✅ SUCCESS! Yo, Stepan, everything is awesome!';
+                resultDiv.classList.remove('bg-red-100');
+                resultDiv.classList.add('bg-green-100');
+                document.getElementById('resultStatus').style.color = 'green';
+            } else {
+                document.getElementById('resultTitle').textContent = '❌ FAILED. Please try again.';
+                resultDiv.classList.remove('bg-green-100');
+                resultDiv.classList.add('bg-red-100');
+                document.getElementById('resultStatus').style.color = 'red';
+            }
+
+            // Fill in the rest of the fields
+            document.getElementById('resultStatus').textContent = status;
+            document.getElementById('resultId').textContent = result.transactionId;
+            document.getElementById('resultMessage').textContent = result.message;
+        })
+        .catch(error => {
+            // Ошибка сети - используем resultDiv, она доступна
+            document.getElementById('resultTitle').textContent = '❌ Network Error';
+            document.getElementById('resultMessage').textContent = 'Connection problem with the emulator.';
+            resultDiv.classList.remove('bg-green-100');
+            resultDiv.classList.add('bg-red-100');
+        })
+        .finally(() => {
+            // 4. Hide loading and show result
+            document.getElementById('loadingState').classList.add('hidden');
+            resultDiv.classList.remove('hidden'); // Используем resultDiv здесь
+            document.getElementById('submitButton').disabled = false;
+        });
+    });
+</script>
+
+</body>
+</html>
