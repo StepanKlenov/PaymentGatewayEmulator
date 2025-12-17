@@ -1,37 +1,57 @@
-// класс эмуляции
-
 package com.example.PaymentGatewayEmulator.service;
 
 import com.example.PaymentGatewayEmulator.dto.PaymentRequestDTO;
 import com.example.PaymentGatewayEmulator.dto.PaymentResponseDTO;
+import com.example.PaymentGatewayEmulator.model.BankUser;
+import com.example.PaymentGatewayEmulator.repository.BankUserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class MockPaymentGateway implements PaymentGateway {
+public class MockPaymentGateway {
 
-    @Override
+    @Autowired
+    private BankUserRepository bankUserRepository;
+
     public PaymentResponseDTO processPayment(PaymentRequestDTO request) {
-
-        String transactionId = UUID.randomUUID().toString();
         PaymentResponseDTO response = new PaymentResponseDTO();
+        response.setTransactionId(UUID.randomUUID().toString());
 
-        // --- ЛОГИКА ЭМУЛЯЦИИ ---
-        // Имитация отказа: если номер карты начинается с '555',
-        // то шлюз отвечает FAIL.
-        if (request.getCardNumber() != null && request.getCardNumber().startsWith("555")) {
+        // 1. Поиск карты в базе
+        Optional<BankUser> userOpt = bankUserRepository.findByCardNumber(request.getCardNumber());
+
+        if (userOpt.isEmpty()) {
             response.setStatus("FAILED");
-            response.setMessage("Transaction declined (Mock code: 555 - Test Failure)");
+            response.setMessage("Карта не найдена в базе банка");
+            return response;
         }
-        // В остальных случаях - УСПЕХ
-        else {
-            response.setStatus("SUCCESS");
-            response.setMessage("Payment processed successfully.");
-        }
-        // --- КОНЕЦ ЛОГИКИ ЭМУЛЯЦИИ ---
 
-        response.setTransactionId(transactionId);
-        response.setGateway("MockGateway");
+        BankUser user = userOpt.get();
+
+        // 2. Проверка блокировки
+        if (user.isBlocked()) {
+            response.setStatus("FAILED");
+            response.setMessage("Карта заблокирована");
+            return response;
+        }
+
+        // 3. Проверка баланса (BigDecimal требует compareTo)
+        BigDecimal amountToPay = request.getAmount();
+        if (user.getBalance().compareTo(amountToPay) < 0) {
+            response.setStatus("FAILED");
+            response.setMessage("Недостаточно средств. Баланс: " + user.getBalance());
+            return response;
+        }
+
+        // 4. Списание и сохранение
+        user.setBalance(user.getBalance().subtract(amountToPay));
+        bankUserRepository.save(user);
+
+        response.setStatus("SUCCESS");
+        response.setMessage("Оплачено успешно. Остаток: " + user.getBalance());
 
         return response;
     }

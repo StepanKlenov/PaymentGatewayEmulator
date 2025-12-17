@@ -1,17 +1,21 @@
 package com.example.PaymentGatewayEmulator.dto;
 
+import java.math.BigDecimal; // Обязательный импорт для работы с деньгами
+
 public class PaymentRequestDTO {
     private String cardNumber;
-    private String amount;
+    private BigDecimal amount; // ИСПРАВЛЕНО: тип String заменен на BigDecimal
     private String currency;
 
     // ГЕТТЕРЫ (Getters)
     public String getCardNumber() {
         return cardNumber;
     }
-    public String getAmount() {
+
+    public BigDecimal getAmount() { // ИСПРАВЛЕНО: возвращает BigDecimal
         return amount;
     }
+
     public String getCurrency() {
         return currency;
     }
@@ -20,9 +24,11 @@ public class PaymentRequestDTO {
     public void setCardNumber(String cardNumber) {
         this.cardNumber = cardNumber;
     }
-    public void setAmount(String amount) {
+
+    public void setAmount(BigDecimal amount) { // ИСПРАВЛЕНО: принимает BigDecimal
         this.amount = amount;
     }
+
     public void setCurrency(String currency) {
         this.currency = currency;
     }
